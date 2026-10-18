@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="id"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mini Submarine 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#edf1f4; --panel:#ffffff; --ink:#0f1a24; --mute:#566673; --line:#d2dae1;
+  --accent:#0a6f8f; --accent-ink:#ffffff; --chip:#e7edf2; --chip-on:#0a6f8f;
+  --scene:#e3e9ee; --tagbg:rgba(255,255,255,.93); --tagfg:#0f1a24; --good:#17803d; --warn:#b45309;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1319; --panel:#151f29; --ink:#e6edf3; --mute:#92a3b0; --line:#263543;
+    --accent:#4cc4e6; --accent-ink:#06222c; --chip:#1e2b37; --chip-on:#4cc4e6;
+    --scene:#0f1a22; --tagbg:rgba(21,31,41,.93); --tagfg:#e6edf3; --good:#4ade80; --warn:#fbbf24;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1319; --panel:#151f29; --ink:#e6edf3; --mute:#92a3b0; --line:#263543;
+  --accent:#4cc4e6; --accent-ink:#06222c; --chip:#1e2b37; --chip-on:#4cc4e6;
+  --scene:#0f1a22; --tagbg:rgba(21,31,41,.93); --tagfg:#e6edf3; --good:#4ade80; --warn:#fbbf24;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;line-height:1.45;padding-inline:16px;padding-block:16px 28px}
+.wrap{max-width:1560px;margin:0 auto}
+h1{font-size:22px;line-height:1.2;margin:0;font-weight:600;letter-spacing:.2px}
+.sub{color:var(--mute);margin:4px 0 0;max-width:70ch}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:16px;margin-top:14px;align-items:start}
+.stage{position:relative;height:min(80vh,780px);min-height:440px;border-radius:14px;overflow:hidden;background:var(--scene);border:1px solid var(--line)}
+canvas{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+canvas:active{cursor:grabbing}
+#tags{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.tag{position:absolute;left:0;top:0;font:500 11.5px/1 'IBM Plex Sans',system-ui,sans-serif;padding:4px 7px;border-radius:6px;background:var(--tagbg);color:var(--tagfg);border:1px solid var(--line);white-space:nowrap;will-change:transform}
+.tag.sm{font-size:10.5px;padding:3px 5px}
+.views{position:absolute;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 20px)}
+.hud{position:absolute;left:10px;bottom:10px;right:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;pointer-events:none}
+.pill{background:var(--tagbg);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font:500 12px/1.2 'IBM Plex Mono',monospace;color:var(--tagfg)}
+.pill b{font-weight:600}
+.pill.on{border-color:var(--good);color:var(--good)}
+.hint{position:absolute;right:10px;bottom:10px;font-size:11.5px;color:var(--mute);background:var(--tagbg);padding:4px 8px;border-radius:6px;pointer-events:none}
+button{font:inherit;color:inherit}
+.chip{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12.5px;font-weight:500}
+.chip:hover{border-color:var(--accent)}
+.chip:focus-visible,.row:focus-visible,.gh:focus-visible,.mode:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 14px}
+.card h2{font-size:12px;letter-spacing:.9px;text-transform:uppercase;color:var(--mute);margin:0 0 9px;font-weight:600}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mode{background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:10px 6px;cursor:pointer;font-weight:600;font-size:13px;text-align:center}
+.mode small{display:block;font:500 11px 'IBM Plex Mono',monospace;color:var(--mute);margin-top:2px}
+.mode[aria-pressed="true"]{background:var(--chip-on);color:var(--accent-ink);border-color:var(--chip-on)}
+.mode[aria-pressed="true"] small{color:var(--accent-ink);opacity:.85}
+.note{color:var(--mute);font-size:12.5px;margin:9px 0 0}
+.layers{display:flex;flex-wrap:wrap;gap:8px 14px}
+.layers label{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px}
+.layers input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+.grp{margin-top:10px}
+.grp:first-of-type{margin-top:0}
+.gh{display:block;width:100%;text-align:left;background:none;border:0;padding:4px 0;cursor:pointer;font-weight:600;font-size:13px}
+.gh:hover{color:var(--accent)}
+.row{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;border-radius:6px;padding:4px 6px;cursor:pointer;text-align:left;font-size:12.5px}
+.row:hover,.row.on{background:var(--chip)}
+.sw{width:12px;height:12px;border-radius:50%;flex:none;border:1px solid rgba(128,128,128,.55)}
+.pin{font:500 12px 'IBM Plex Mono',monospace;background:var(--chip);border:1px solid var(--line);border-radius:5px;padding:1px 6px;white-space:nowrap}
+.pin.esp{border-color:var(--accent);color:var(--accent);font-weight:600}
+.arr{color:var(--mute)}
+ul.n{margin:0;padding-left:18px;color:var(--mute);font-size:12.5px}
+ul.n li{margin:5px 0}
+@media (max-width:980px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .stage{height:68vh;min-height:380px}
+  .hint{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Mini Submarine</h1>
+  <p class="sub">Wiring dalam 3D. Putar dengan seret, zoom dengan scroll atau cubit. Arahkan ke daftar sambungan di kanan untuk menyorot kabelnya.</p>
+  <div class="layout">
+    <div class="stage" id="stage">
+      <canvas id="c" aria-label="Model 3D wiring mini submarine"></canvas>
+      <div id="tags"></div>
+      <div class="views" id="views">
+        <button class="chip" data-v="iso">Isometrik</button>
+        <button class="chip" data-v="top">Atas</button>
+        <button class="chip" data-v="tank">Akuarium</button>
+        <button class="chip" data-v="esp">Zoom ESP32</button>
+      </div>
+      <div class="hud">
+        <span class="pill">Kedalaman <b id="hDepth">11.0</b> cm</span>
+        <span class="pill" id="hStatus">MELAYANG</span>
+        <span class="pill" id="hP1">Pompa 1 OFF</span>
+        <span class="pill" id="hP2">Pompa 2 OFF</span>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="card">
+        <h2>Simulasi alur</h2>
+        <div class="modes" id="modes">
+          <button class="mode" data-m="naik" aria-pressed="false">MENGAPUNG<small>2 cm</small></button>
+          <button class="mode" data-m="melayang" aria-pressed="true">MELAYANG<small>11 cm</small></button>
+          <button class="mode" data-m="turun" aria-pressed="false">TENGGELAM<small>19 cm</small></button>
+        </div>
+        <p class="note">Tekan salah satu. Kapal bergerak, pompa yang menyala berganti, dan layar OLED ikut berubah, sama seperti dashboard.</p>
+      </div>
+      <div class="card">
+        <h2>Tampilkan</h2>
+        <div class="layers">
+          <label><input type="checkbox" id="lyHose" checked> Selang air</label>
+          <label><input type="checkbox" id="lySensor" checked> Selang sensor</label>
+          <label><input type="checkbox" id="lyPower" checked> Kabel daya pompa</label>
+          <label><input type="checkbox" id="lyCtrl" checked> Kabel kontrol</label>
+          <label><input type="checkbox" id="lyTags" checked> Label</label>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Daftar sambungan</h2>
+        <div id="list"></div>
+      </div>
+      <div class="card">
+        <h2>Catatan</h2>
+        <ul class="n">
+          <li>Papan ESP32 di gambarmu tipe 38 pin dengan USB di kanan. Nomor GPIO-nya sama dengan tipe 30 pin.</li>
+          <li>Jalur 5V, 3V3, dan GND di depan ESP32 adalah rel breadboard. Satu kabel dari pin ESP32 ke rel, lalu modul diambil dari rel itu.</li>
+          <li>Relay aktif LOW. Relay hanya memutus plus pompa. Minus baterai tidak disambung ke GND ESP32.</li>
+          <li>Urutan pin modul sensor dan OLED bisa beda tiap merek. Cocokkan dengan tulisan di modulmu.</li>
+          <li>Komponen elektronik digambar lebih besar agar tulisannya terbaca. Akuarium berbentuk tabung dengan tinggi air 40 cm.</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+'use strict';
+var T = window.THREE;
+var $ = function(id){ return document.getElementById(id); };
+var stage = $('stage'), canvas = $('c'), tagsEl = $('tags');
+function fail(msg){
+  stage.innerHTML = '<p style="padding:24px;color:var(--ink)">' + msg + '</p>';
+}
+if(!T || !T.OrbitControls){ fail('Pustaka 3D gagal dimuat. Muat ulang halaman ini.'); return; }
+var renderer;
+try{
+  renderer = new T.WebGLRenderer({canvas:canvas, antialias:true});
+}catch(e){
+  fail('Browser ini tidak mendukung WebGL, jadi tampilan 3D tidak bisa dibuat.');
+  return;
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = T.PCFSoftShadowMap;
+var scene = new T.Scene();
+var camera = new T.PerspectiveCamera(36, 1.5, 1, 700);
+var controls = new T.OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.minDistance = 8;
+controls.maxDistance = 280;
+/* ---------- tema ---------- */
+var THEMES = {
+  light:{bg:0xe3e9ee, table:0xd0d7df, black:0x1f2329, edge:0x7aa0b5},
+  dark: {bg:0x0f1a22, table:0x26313b, black:0x6f7a86, edge:0x5b88a0}
+};
+var tableMat = new T.MeshStandardMaterial({color:0xd0d7df, roughness:.95, metalness:0});
+var blackMats = [];
+var edgeMat = new T.LineBasicMaterial({color:0x7aa0b5});
+function isDark(){
+  var r = document.documentElement.getAttribute('data-theme');
+  if(r === 'dark') return true;
+  if(r === 'light') return false;
+  return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+}
+function applyTheme(){
+  var t = isDark() ? THEMES.dark : THEMES.light;
+  scene.background = new T.Color(t.bg);
+  tableMat.color.setHex(t.table);
+  edgeMat.color.setHex(t.edge);
+  blackMats.forEach(function(m){ m.color.setHex(t.black); });
+}
+
+/* ---------- cahaya ---------- */
+scene.add(new T.HemisphereLight(0xffffff, 0x8d99a8, 0.95));
+var sun = new T.DirectionalLight(0xffffff, 0.75);
+sun.position.set(-30, 130, 100);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -95; sun.shadow.camera.right = 95;
+sun.shadow.camera.top = 95; sun.shadow.camera.bottom = -95;
+sun.shadow.camera.near = 20; sun.shadow.camera.far = 340;
+sun.shadow.bias = -0.0006;
+scene.add(sun);
+var fill = new T.DirectionalLight(0xbcd6ff, 0.25);
+fill.position.set(80, 50, -40);
+scene.add(fill);
+
+/* ---------- helper ---------- */
+function std(color, o){
+  var p = {color:color, roughness:.55, metalness:.05};
+  if(o){ for(var k in o){ p[k] = o[k]; } }
+  return new T.MeshStandardMaterial(p);
+}
+function box(w, h, d, color, o){
+  var m = new T.Mesh(new T.BoxGeometry(w, h, d), std(color, o));
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function cyl(rt, rb, h, color, seg, o){
+  var m = new T.Mesh(new T.CylinderGeometry(rt, rb, h, seg || 24), std(color, o));
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function V(x, y, z){ return new T.Vector3(x, y, z); }
+var fontsReady = [];
+function canvasTex(w, h, draw){
+  var c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  var g = c.getContext('2d');
+  draw(g, w, h);
+  var t = new T.CanvasTexture(c);
+  t.anisotropy = 8;
+  var obj = {tex:t, ctx:g, w:w, h:h, draw:draw};
+  fontsReady.push(obj);
+  return obj;
+}
+function redrawTex(o){
+  o.ctx.clearRect(0, 0, o.w, o.h);
+  o.draw(o.ctx, o.w, o.h);
+  o.tex.needsUpdate = true;
+}
+function decal(parent, w, d, x, y, z, texObj){
+  var m = new T.Mesh(new T.PlaneGeometry(w, d),
+    new T.MeshBasicMaterial({map:texObj.tex, transparent:true, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2}));
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(x, y, z);
+  parent.add(m);
+  return m;
+}
+var MONO = '"IBM Plex Mono", "Courier New", monospace';
+var SANS = '"IBM Plex Sans", Arial, sans-serif';
+
+/* ---------- jalur tabung (kabel dan selang) ---------- */
+function clean(pts){
+  var o = [pts[0].clone()];
+  for(var i = 1; i < pts.length; i++){
+    if(pts[i].distanceTo(o[o.length - 1]) > 1e-3){ o.push(pts[i].clone()); }
+  }
+  return o;
+}
+function densify(pts, step){
+  var o = [pts[0].clone()];
+  for(var i = 1; i < pts.length; i++){
+    var a = pts[i - 1], b = pts[i];
+    var n = Math.max(1, Math.ceil(a.distanceTo(b) / step));
+    for(var k = 1; k <= n; k++){ o.push(a.clone().lerp(b, k / n)); }
+  }
+  return o;
+}
+function pathPts(pts, r){
+  pts = clean(pts);
+  if(pts.length < 3){ return densify(pts, 2); }
+  var out = [pts[0].clone()];
+  for(var i = 1; i < pts.length - 1; i++){
+    var p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
+    var v1 = p0.clone().sub(p1), v2 = p2.clone().sub(p1);
+    var l1 = v1.length(), l2 = v2.length();
+    var rr = Math.min(r, l1 / 2, l2 / 2);
+    var a = p1.clone().add(v1.normalize().multiplyScalar(rr));
+    var b = p1.clone().add(v2.normalize().multiplyScalar(rr));
+    for(var k = 0; k <= 6; k++){
+      var t = k / 6, u = 1 - t;
+      out.push(new T.Vector3(
+        a.x * u * u + p1.x * 2 * u * t + b.x * t * t,
+        a.y * u * u + p1.y * 2 * u * t + b.y * t * t,
+        a.z * u * u + p1.z * 2 * u * t + b.z * t * t));
+    }
+  }
+  out.push(pts[pts.length - 1].clone());
+  return densify(clean(out), 2);
+}
+function curveOf(pts, r){
+  return new T.CatmullRomCurve3(pathPts(pts, r), false, 'centripetal');
+}
+function tubeGeo(pts, rad, r){
+  var P = pathPts(pts, r);
+  var c = new T.CatmullRomCurve3(P, false, 'centripetal');
+  return new T.TubeGeometry(c, Math.max(8, P.length * 2), rad, 6, false);
+}
+
+/* ---------- lapisan ---------- */
+var L = {hose:new T.Group(), sensor:new T.Group(), power:new T.Group(), ctrl:new T.Group()};
+for(var lk in L){ scene.add(L[lk]); }
+
+/* ---------- meja ---------- */
+var table = new T.Mesh(new T.PlaneGeometry(132, 100), tableMat);
+table.rotation.x = -Math.PI / 2;
+table.position.set(2, 0, 24);
+table.receiveShadow = true;
+scene.add(table);
+
+/* =====================================================================
+   AKUARIUM
+   ===================================================================== */
+/* Akuarium berbentuk tabung silinder tinggi, bukan kotak persegi panjang. */
+var TX0 = -44, TW = 28, TD = 28, TH = 43, WL = 40;
+var TANK_X = -30, TANK_R = 14;
+var tank = new T.Group();
+scene.add(tank);
+var glassMat = new T.MeshPhysicalMaterial({color:0xcfe8f5, transparent:true, opacity:.10, roughness:.05, metalness:0, side:T.DoubleSide, depthWrite:false});
+var glass = new T.Mesh(new T.CylinderGeometry(TANK_R, TANK_R, TH, 48, 1, true), glassMat);
+glass.position.set(TANK_X, TH / 2, 0);
+glass.renderOrder = 6;
+tank.add(glass);
+/* Bibir atas dan bawah memperjelas bentuk tabung. */
+var rimMat = new T.MeshBasicMaterial({color:0x7aa0b5});
+var rimTop = new T.Mesh(new T.TorusGeometry(TANK_R, .16, 8, 64), rimMat);
+rimTop.rotation.x = Math.PI / 2;
+rimTop.position.set(TANK_X, TH, 0);
+tank.add(rimTop);
+var rimBottom = new T.Mesh(new T.TorusGeometry(TANK_R, .16, 8, 64), rimMat);
+rimBottom.rotation.x = Math.PI / 2;
+rimBottom.position.set(TANK_X, 0, 0);
+tank.add(rimBottom);
+var water = new T.Mesh(new T.CylinderGeometry(TANK_R - .35, TANK_R - .35, WL, 48, 1, false),
+  new T.MeshStandardMaterial({color:0x3aa8e8, transparent:true, opacity:.20, roughness:.2, depthWrite:false}));
+water.position.set(TANK_X, WL / 2, 0);
+water.renderOrder = 1;
+tank.add(water);
+
+/* Penggaris kedalaman dan garis target pada sisi belakang tabung. */
+var ruler = canvasTex(1112, 800, function(g, w, h){
+  var ppc = 20;
+  g.font = '500 17px ' + MONO;
+  g.textBaseline = 'middle';
+  for(var d = 0; d <= 40; d += 1){
+    var y = d * ppc + 1;
+    var major = d % 5 === 0;
+    g.strokeStyle = major ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.28)';
+    g.lineWidth = d === 0 ? 3 : (major ? 1.5 : 1);
+    g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
+    if(major || d === 40){
+      g.fillStyle = 'rgba(15,40,58,.9)';
+      g.textAlign = 'left';
+      g.fillText(d === 0 ? '0 cm (permukaan)' : String(d) + ' cm', 10, y + (d === 0 ? 14 : -10));
+    }
+  }
+  var T3 = [[2, '#16a34a', 'MENGAPUNG 2 cm'], [11, '#d97706', 'MELAYANG 11 cm'], [19, '#2563eb', 'TENGGELAM 19 cm']];
+  g.font = '600 22px ' + SANS;
+  g.textAlign = 'right';
+  for(var i = 0; i < T3.length; i++){
+    var yy = T3[i][0] * ppc + 1;
+    g.strokeStyle = T3[i][1]; g.lineWidth = 3;
+    g.setLineDash([16, 10]);
+    g.beginPath(); g.moveTo(0, yy); g.lineTo(w, yy); g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = T3[i][1];
+    g.fillText(T3[i][2], w - 14, yy - 16);
+  }
+});
+var rulerPlane = new T.Mesh(new T.PlaneGeometry(23, WL - .4),
+  new T.MeshBasicMaterial({map:ruler.tex, transparent:true, depthWrite:false, side:T.DoubleSide}));
+rulerPlane.position.set(TANK_X, (WL - .4) / 2 + .2, -TANK_R + .45);
+rulerPlane.renderOrder = 0;
+tank.add(rulerPlane);
+
+/* =====================================================================
+   BOTOL BALLAST + POMPA
+   ===================================================================== */
+var BX = -30, BR = 3.4;
+var bottle = new T.Group();
+scene.add(bottle);
+var bottleMat = new T.MeshPhysicalMaterial({color:0xeaf7ff, transparent:true, opacity:.26, roughness:.05, metalness:0, side:T.DoubleSide, depthWrite:false});
+function bGeo(g, x){
+  g.rotateZ(Math.PI / 2);
+  var m = new T.Mesh(g, bottleMat);
+  m.position.x = x; m.renderOrder = 4;
+  bottle.add(m);
+  return m;
+}
+bGeo(new T.CylinderGeometry(BR, BR, 21, 32, 1, true), 0);
+bGeo(new T.CylinderGeometry(1.4, BR, 2.5, 32, 1, true), -11.75);
+bGeo(new T.CylinderGeometry(1.4, 1.4, 2.2, 24, 1, true), -14.1);
+var capM = cyl(1.75, 1.75, 1.4, 0x2563eb, 24);
+capM.rotation.z = Math.PI / 2; capM.position.x = -15.9;
+bottle.add(capM);
+var endCap = new T.Mesh(new T.CircleGeometry(BR, 32), bottleMat);
+endCap.rotation.y = Math.PI / 2; endCap.position.x = 10.5; endCap.renderOrder = 4;
+bottle.add(endCap);
+
+/* lubang udara di atas botol */
+var vent = cyl(.55, .55, .14, 0x1f2933, 16);
+vent.position.set(1.5, BR + .02, 0);
+bottle.add(vent);
+
+/* air ballast di dalam botol */
+var ballastMat = new T.MeshStandardMaterial({color:0x1d8fe0, transparent:true, opacity:.62, roughness:.2, depthWrite:false});
+var ballast = new T.Mesh(new T.BufferGeometry(), ballastMat);
+ballast.renderOrder = 3;
+bottle.add(ballast);
+var lastFill = -1;
+function setFill(f){
+  if(Math.abs(f - lastFill) < .004){ return; }
+  lastFill = f;
+  var rr = BR - .05;
+  var h = Math.max(.05, Math.min(2 * rr, f * 2 * rr));
+  var y0 = -rr + h;
+  var c = Math.sqrt(Math.max(0, rr * rr - y0 * y0));
+  var a1 = Math.atan2(y0, c);
+  var s = new T.Shape();
+  s.moveTo(-c, y0);
+  s.lineTo(c, y0);
+  s.absarc(0, 0, rr, a1, -Math.PI - a1, true);
+  var g = new T.ExtrudeGeometry(s, {depth:19, bevelEnabled:false, steps:1});
+  g.rotateY(Math.PI / 2);
+  g.translate(-9.5, 0, 0);
+  ballast.geometry.dispose();
+  ballast.geometry = g;
+}
+
+function makePump(){
+  var g = new T.Group();
+  var b = box(3.2, 3.4, 3.2, 0xf0e9d2); g.add(b);
+  var m = cyl(1.0, 1.0, .7, 0x7b8490, 20); m.position.y = 2.0; g.add(m);
+  var nz = cyl(.5, .5, 1.1, 0xdcd5be, 16); nz.position.set(0, -2.1, 0); g.add(nz);
+  var ring = cyl(1.3, 1.3, .35, 0xcfc7aa, 20); ring.position.y = 1.2; g.add(ring);
+  return g;
+}
+var pump1 = makePump(); pump1.position.set(5.5, -1.7, 0); bottle.add(pump1);
+var pump2 = makePump(); pump2.position.set(-5.5, -1.7, 0); bottle.add(pump2);
+var pump1Body = pump1.children[0], pump2Body = pump2.children[0];
+
+/* selang air */
+var hoseMat = new T.MeshStandardMaterial({color:0x1e90d6, roughness:.35, metalness:0});
+var hose1Pts = [V(5.5, -3.0, 0), V(5.5, -8, 0), V(9.5, -10.8, 0)];
+var hose2Pts = [V(-5.5, .2, 0), V(-5.5, 1.0, 0), V(-9, 1.0, 0), V(-11, 0, 0), V(-17.5, 0, 0), V(-21, -3.5, 0), V(-21, -7.5, 0)];
+var hose1 = new T.Mesh(tubeGeo(hose1Pts, .5, 1.6), hoseMat); hose1.castShadow = true;
+var hose2 = new T.Mesh(tubeGeo(hose2Pts, .5, 1.6), hoseMat); hose2.castShadow = true;
+var hoseGroup = new T.Group();
+hoseGroup.add(hose1); hoseGroup.add(hose2);
+bottle.add(hoseGroup);
+var curve1 = curveOf(hose1Pts, 1.6), curve2 = curveOf(hose2Pts, 1.6);
+var pMat = new T.MeshBasicMaterial({color:0xffffff});
+function makeParticles(){
+  var a = [];
+  for(var i = 0; i < 5; i++){
+    var s = new T.Mesh(new T.SphereGeometry(.34, 8, 8), pMat);
+    s.visible = false;
+    hoseGroup.add(s);
+    a.push(s);
+  }
+  return a;
+}
+var part1 = makeParticles(), part2 = makeParticles();
+/* ujung selang terbuka */
+function openEnd(p, dir){
+  var r = new T.Mesh(new T.TorusGeometry(.55, .13, 8, 16), std(0x0f5f93, {roughness:.4}));
+  r.position.copy(p);
+  if(dir === 'y'){ r.rotation.x = Math.PI / 2; }
+  hoseGroup.add(r);
+}
+openEnd(hose1Pts[2], 'y');
+openEnd(hose2Pts[6], 'y');
+
+/* jangkar di botol */
+var tipAnchor = new T.Object3D(); tipAnchor.position.set(3.2, .2, BR + .6); bottle.add(tipAnchor);
+var topAnchor = new T.Object3D(); topAnchor.position.set(0, BR + 1, 0); bottle.add(topAnchor);
+var p1Anchor = new T.Object3D(); p1Anchor.position.set(5.5, -6.2, 0); bottle.add(p1Anchor);
+var p2Anchor = new T.Object3D(); p2Anchor.position.set(-5.5, -4.6, 0); bottle.add(p2Anchor);
+var ventAnchor = new T.Object3D(); ventAnchor.position.set(1.5, BR + .3, 0); bottle.add(ventAnchor);
+var lead = {
+  r1:new T.Object3D(), b1:new T.Object3D(), r2:new T.Object3D(), b2:new T.Object3D()
+};
+lead.r1.position.set(5.0, 0.4, -.7);  bottle.add(lead.r1);
+lead.b1.position.set(6.0, 0.4, .7);   bottle.add(lead.b1);
+lead.r2.position.set(-6.0, 0.4, -.7); bottle.add(lead.r2);
+lead.b2.position.set(-5.0, 0.4, .7);  bottle.add(lead.b2);
+
+/* =====================================================================
+   BATERAI 18650
+   ===================================================================== */
+var batt = new T.Group(); batt.position.set(-34, 1.7, 28); scene.add(batt);
+var bc = cyl(1.6, 1.6, 9, 0x2a5bd7, 28); bc.rotation.z = Math.PI / 2; batt.add(bc);
+var bandG = cyl(1.63, 1.63, 2.6, 0xf5f7fa, 28); bandG.rotation.z = Math.PI / 2; bandG.position.x = -.6; batt.add(bandG);
+var posCap = cyl(.95, .95, .4, 0xd4af37, 20, {metalness:.7, roughness:.3}); posCap.rotation.z = Math.PI / 2; posCap.position.x = 4.65; batt.add(posCap);
+var negCap = cyl(1.4, 1.4, .3, 0xaab2bb, 20, {metalness:.6, roughness:.35}); negCap.rotation.z = Math.PI / 2; negCap.position.x = -4.6; batt.add(negCap);
+var battPos = new T.Object3D(); battPos.position.set(5.0, 0, 0); batt.add(battPos);
+var battNeg = new T.Object3D(); battNeg.position.set(-4.9, 0, 0); batt.add(battNeg);
+var battTop = new T.Object3D(); battTop.position.set(0, 3.2, 0); batt.add(battTop);
+
+/* =====================================================================
+   RELAY
+   ===================================================================== */
+var ledObjs = [];
+function makeRelay(num, cz){
+  var g = new T.Group(); g.position.set(-4, 0, cz); scene.add(g);
+  var pcb = box(12.7, .4, 6.5, 0x1d4ed8); pcb.position.y = .5; g.add(pcb);
+  var cube = box(6.4, 4.0, 5.0, 0x3b82f6, {roughness:.35}); cube.position.set(.2, 2.7, 0); g.add(cube);
+  var cubeTex = canvasTex(256, 200, function(c, w, h){
+    c.fillStyle = 'rgba(255,255,255,.95)';
+    c.font = '600 22px ' + MONO; c.textAlign = 'center';
+    c.fillText('SRD-05VDC', w / 2, 70);
+    c.fillText('10A 250VAC', w / 2, 104);
+    c.fillText('10A 30VDC', w / 2, 138);
+  });
+  decal(g, 6.0, 4.7, .2, 4.72, 0, cubeTex);
+  var names = ['NO', 'COM', 'NC'], zs = [-1.27, 0, 1.27];
+  var blocks = [];
+  for(var i = 0; i < 3; i++){
+    var tb = box(1.6, 1.8, 1.15, 0x2563eb, {roughness:.5}); tb.position.set(-5.5, 1.6, zs[i]); g.add(tb);
+    var sc = cyl(.38, .38, .12, 0xcfd4da, 14, {metalness:.8, roughness:.3}); sc.position.set(-5.5, 2.55, zs[i]); g.add(sc);
+    var an = new T.Object3D(); an.position.set(-5.5, 2.75, zs[i]); g.add(an);
+    blocks.push(an);
+  }
+  var hs = box(1.1, 1.0, 3.4, 0x15171b); hs.position.set(5.4, 1.2, 0); g.add(hs);
+  var hz = [-1, 0, 1], hn = ['IN', 'GND', 'VCC'], hA = [];
+  for(var j = 0; j < 3; j++){
+    var pn = box(.28, 1.3, .28, 0xd4af37, {metalness:.7, roughness:.3}); pn.position.set(5.4, 1.9, hz[j]); g.add(pn);
+    var ha = new T.Object3D(); ha.position.set(5.4, 2.7, hz[j]); g.add(ha); hA.push(ha);
+  }
+  var redLed = box(.7, .5, .7, 0x7a1010, {emissive:0xff2a2a, emissiveIntensity:0}); redLed.position.set(3.7, .95, -2.3); g.add(redLed);
+  var grnLed = box(.7, .5, .7, 0x0d5a2a, {emissive:0x22ff66, emissiveIntensity:.9}); grnLed.position.set(3.7, .95, 2.3); g.add(grnLed);
+  ledObjs.push(redLed);
+  var tex = canvasTex(1270, 650, function(c, w, h){
+    c.fillStyle = '#ffffff';
+    c.textBaseline = 'middle';
+    c.font = '600 46px ' + MONO;
+    c.textAlign = 'left';
+    var tz = [-1.27, 0, 1.27];
+    for(var q = 0; q < 3; q++){
+      c.fillText(names[q], (6.35 - 4.5) * 100 - 6, (3.25 + tz[q]) * 100);
+    }
+    c.textAlign = 'right';
+    for(var r = 0; r < 3; r++){
+      c.fillText(hn[r], (6.35 + 4.45) * 100, (3.25 + hz[r]) * 100);
+    }
+    c.textAlign = 'center';
+    c.font = '600 54px ' + SANS;
+    c.fillText('RELAY ' + num, 635, 575);
+  });
+  decal(g, 12.7, 6.5, 0, .72, 0, tex);
+  g.updateMatrixWorld(true);
+  return {g:g, NO:blocks[0], COM:blocks[1], NC:blocks[2], IN:hA[0], GND:hA[1], VCC:hA[2], led:redLed};
+}
+var relay1 = makeRelay(1, 20);
+var relay2 = makeRelay(2, 36);
+
+/* =====================================================================
+   REL BREADBOARD (5V, 3V3, GND)
+   ===================================================================== */
+var RAIL = {gnd:10, v33:13, v5:16};
+var RSZ = [16.5, 19.9, 23.3, 26.7, 30.1, 33.5, 36.9, 40.3];
+var railGroup = new T.Group(); scene.add(railGroup);
+var rbase = box(12, .8, 28, 0xf1f2f4, {roughness:.7}); rbase.position.set(13, .4, 29); railGroup.add(rbase);
+function railBar(x, color){
+  var b = box(1.6, .3, 26, color, {roughness:.5}); b.position.set(x, .95, 29.2); railGroup.add(b);
+  for(var i = 0; i < RSZ.length; i++){
+    var h = cyl(.28, .28, .1, 0x111111, 10); h.position.set(x, 1.15, RSZ[i]); railGroup.add(h);
+  }
+}
+railBar(RAIL.gnd, 0x2b3038);
+railBar(RAIL.v33, 0xf97316);
+railBar(RAIL.v5, 0xdc2626);
+function railA(rail, i){ var o = new T.Object3D(); o.position.set(rail, 1.9, RSZ[i]); railGroup.add(o); return o; }
+railGroup.updateMatrixWorld(true);
+
+/* =====================================================================
+   ESP32 DevKit 38 pin (USB di kanan)
+   ===================================================================== */
+var BACK = ['GND','23','22','TX','RX','21','GND','19','18','5','17','16','4','0','2','15','D1','D0','CLK'];
+var FRONT = ['3V3','EN','VP','VN','34','35','32','33','25','26','27','14','12','GND','13','D2','D3','CMD','5V'];
+var USED = {
+  'b1':'#22c55e', 'b2':'#67e8f9', 'b5':'#3b82f6',
+  'f0':'#f97316', 'f6':'#ec4899', 'f7':'#a855f7', 'f8':'#14b8a6', 'f13':'#8a94a0', 'f18':'#ef4444'
+};
+var esp = new T.Group(); esp.position.set(42, 0, 28); scene.add(esp);
+var EW = 22, ED = 11.2, PITCH = 1.016, X0 = -9.144;
+var espPcb = box(EW, .6, ED, 0x16191f, {roughness:.6}); espPcb.position.y = .6; esp.add(espPcb);
+var shield = box(7.4, .75, 6.6, 0xc5cad2, {metalness:.7, roughness:.35}); shield.position.set(-3.1, 1.27, 0); esp.add(shield);
+var reg = box(2.0, .45, 1.7, 0x0f1114); reg.position.set(2.6, 1.12, -1.5); esp.add(reg);
+var cp = box(2.0, .3, 2.0, 0x0f1114); cp.position.set(4.9, 1.05, 0.4); esp.add(cp);
+var bt1 = box(1.4, .7, 1.4, 0x2a2e35); bt1.position.set(8.0, 1.2, -1.3); esp.add(bt1);
+var bt2 = box(1.4, .7, 1.4, 0x2a2e35); bt2.position.set(8.0, 1.2, 1.3); esp.add(bt2);
+var led1 = box(.5, .25, .5, 0x3b82f6, {emissive:0x3b82f6, emissiveIntensity:.6}); led1.position.set(3.0, 1.03, 1.7); esp.add(led1);
+var usb = box(3.5, 1.1, 3.9, 0xcfd4da, {metalness:.8, roughness:.3}); usb.position.set(10.6, 1.45, 0); esp.add(usb);
+var usbHole = box(.2, .5, 2.6, 0x15171b); usbHole.position.set(12.4, 1.45, 0); esp.add(usbHole);
+
+var espTex = canvasTex(1980, 1008, function(c, w, h){
+  var ppc = 90;
+  c.strokeStyle = '#b89b4a'; c.lineWidth = 7; c.lineJoin = 'round';
+  c.beginPath();
+  var sx = 0.7 * ppc, sy = 3.1 * ppc;
+  c.moveTo(sx, sy);
+  for(var k = 0; k < 9; k++){
+    c.lineTo(sx + (k % 2 === 0 ? 2.4 : 0.2) * ppc, sy + k * 0.5 * ppc);
+    c.lineTo(sx + (k % 2 === 0 ? 2.4 : 0.2) * ppc, sy + (k + 1) * 0.5 * ppc);
+  }
+  c.stroke();
+  c.fillStyle = '#2b2f36';
+  c.font = '600 30px ' + MONO; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('ESP32-WROOM-32', (11 - 3.1) * ppc, ED / 2 * ppc - 14);
+  c.font = '500 22px ' + MONO;
+  c.font = '500 22px ' + MONO;
+  c.fillText('240MHz  WiFi + BT', (11 - 3.1) * ppc, ED / 2 * ppc + 20);
+  /* label pin */
+  c.textBaseline = 'middle';
+  var rows = [{names:BACK, key:'b', y0:1.12, rot:Math.PI / 2}, {names:FRONT, key:'f', y0:ED - 1.12, rot:-Math.PI / 2}];
+  for(var r = 0; r < 2; r++){
+    var row = rows[r];
+    for(var p = 0; p < 19; p++){
+      var cx = (EW / 2 + X0 + p * PITCH) * ppc;
+      var col = USED[row.key + p];
+      c.save();
+      c.translate(cx, row.y0 * ppc);
+      c.rotate(row.rot);
+      if(col){
+        c.fillStyle = col;
+        c.beginPath();
+        if(c.roundRect){ c.roundRect(-8, -40, 2.35 * ppc, 80, 16); } else { c.rect(-8, -40, 2.35 * ppc, 80); }
+        c.fill();
+        c.fillStyle = (row.key === 'f' && p === 13) ? '#0b0d10' : '#06121a';
+        if(col === '#3b82f6' || col === '#ec4899' || col === '#a855f7' || col === '#ef4444' || col === '#14b8a6' || col === '#8a94a0'){ c.fillStyle = '#ffffff'; }
+      } else {
+        c.fillStyle = '#e9edf2';
+      }
+      c.font = '700 40px ' + MONO;
+      c.textAlign = 'left';
+      var nm = row.names[p];
+      var label = (/^\d+$/.test(nm) ? 'G' + nm : nm);
+      c.fillText(label, 6, 2);
+      c.restore();
+    }
+  }
+});
+decal(esp, EW, ED, 0, .905, 0, espTex);
+
+var espPins = {};
+function pinAnchor(key, idx){
+  var x = X0 + idx * PITCH;
+  var z = (key === 'b' ? -1 : 1) * 5.08;
+  var o = new T.Object3D(); o.position.set(x, 2.9, z); esp.add(o);
+  espPins[key + idx] = o;
+}
+['b', 'f'].forEach(function(key){
+  var zc = (key === 'b' ? -1 : 1) * 5.08;
+  var strip = box(19.4, 1.0, 1.0, 0x15171b); strip.position.set(0, 1.4, zc); esp.add(strip);
+  for(var i = 0; i < 19; i++){
+    var x = X0 + i * PITCH;
+    var pn = box(.28, 1.2, .28, 0xd4af37, {metalness:.7, roughness:.3}); pn.position.set(x, 2.3, zc); esp.add(pn);
+    pinAnchor(key, i);
+  }
+});
+esp.updateMatrixWorld(true);
+
+/* =====================================================================
+   SENSOR HX710B + MPS20N0040D
+   ===================================================================== */
+var sens = new T.Group(); sens.position.set(26, 0, 60); scene.add(sens);
+var sPcb = box(5.2, .3, 5.2, 0xb3202a, {roughness:.5}); sPcb.position.y = .45; sens.add(sPcb);
+var sBody = box(2.8, 1.8, 2.8, 0x15171b, {roughness:.4}); sBody.position.set(-.2, 1.5, .5); sens.add(sBody);
+var sNoz = cyl(.55, .55, 1.7, 0xc9ced6, 16, {metalness:.6, roughness:.35}); sNoz.position.set(-.2, 3.2, .5); sens.add(sNoz);
+var sIc = box(1.1, .25, .9, 0x0f1114); sIc.position.set(1.6, .72, -.6); sens.add(sIc);
+var sHs = box(4.6, .9, .9, 0x15171b); sHs.position.set(0, .95, -2.1); sens.add(sHs);
+var sNames = ['VCC', 'GND', 'OUT', 'SCK'], sX = [-2.1, -.7, .7, 2.1], sA = {};
+for(var si = 0; si < 4; si++){
+  var sp = box(.25, 1.1, .25, 0xd4af37, {metalness:.7, roughness:.3}); sp.position.set(sX[si], 1.8, -2.1); sens.add(sp);
+  var sa = new T.Object3D(); sa.position.set(sX[si], 2.5, -2.1); sens.add(sa); sA[sNames[si]] = sa;
+}
+var sNozA = new T.Object3D(); sNozA.position.set(-.2, 4.1, .5); sens.add(sNozA);
+var sTex = canvasTex(520, 520, function(c, w, h){
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillStyle = '#ffe9e9'; c.font = '600 34px ' + MONO;
+  c.fillText('HX710B', 130, 440);
+  c.font = '600 28px ' + MONO;
+  c.fillText('40kPa', 400, 440);
+  c.font = '600 26px ' + MONO;
+  for(var i = 0; i < 4; i++){
+    c.fillText(sNames[i], (2.6 + sX[i]) * 100, 120);
+  }
+});
+decal(sens, 5.2, 5.2, 0, .61, 0, sTex);
+sens.updateMatrixWorld(true);
+
+/* =====================================================================
+   OLED SSD1306
+   ===================================================================== */
+var OT = .95;
+var oledPivot = new T.Group(); oledPivot.position.set(16, 3.3, 5); oledPivot.rotation.x = OT; scene.add(oledPivot);
+var oBoard = box(7.0, .3, 7.1, 0x101a2e, {roughness:.5}); oBoard.position.y = .15; oledPivot.add(oBoard);
+var oGlass = box(6.2, .12, 3.4, 0x05070a, {roughness:.2}); oGlass.position.set(0, .34, -1.2); oledPivot.add(oGlass);
+var oHs = box(4.6, .9, .9, 0x15171b); oHs.position.set(0, .75, 3.0); oledPivot.add(oHs);
+var oNames = ['GND', 'VCC', 'SCL', 'SDA'], oX = [-1.9, -.63, .63, 1.9], oA = {};
+for(var oi = 0; oi < 4; oi++){
+  var op = box(.25, 1.1, .25, 0xd4af37, {metalness:.7, roughness:.3}); op.position.set(oX[oi], 1.0, 3.0); oledPivot.add(op);
+  var oa = new T.Object3D(); oa.position.set(oX[oi], 1.7, 3.0); oledPivot.add(oa); oA[oNames[oi]] = oa;
+}
+var oLabel = canvasTex(700, 710, function(c, w, h){
+  c.fillStyle = '#e8eef8'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.font = '600 34px ' + MONO;
+  for(var i = 0; i < 4; i++){ c.fillText(oNames[i], (3.5 + oX[i]) * 100, 560); }
+});
+decal(oledPivot, 7.0, 7.1, 0, .31, 0, oLabel);
+var oledState = {depth:-1, tgt:-1, status:'', p1:null, p2:null};
+var oledScr = canvasTex(256, 140, function(c, w, h){
+  c.fillStyle = '#05070a'; c.fillRect(0, 0, w, h);
+  c.fillStyle = '#d8f3ff'; c.textBaseline = 'top'; c.textAlign = 'left';
+  c.font = '600 17px ' + MONO;
+  c.fillText('MINI SUBMARINE', 34, 4);
+  c.fillRect(0, 26, w, 1);
+  c.font = '500 17px ' + MONO;
+  c.fillText('Depth : ' + oledState.depth.toFixed(1) + ' cm', 6, 32);
+  c.fillText('Target: ' + oledState.tgt.toFixed(1) + ' cm', 6, 54);
+  c.fillText('Status: ' + oledState.status, 6, 76);
+  c.fillText('Pump 1: ' + (oledState.p1 ? 'ON' : 'OFF'), 6, 98);
+  c.fillText('Pump 2: ' + (oledState.p2 ? 'ON' : 'OFF'), 6, 120);
+});
+oledState.depth = 11; oledState.tgt = 11; oledState.status = 'MELAYANG'; oledState.p1 = false; oledState.p2 = false;
+redrawTex(oledScr);
+var oledPlane = decal(oledPivot, 6.0, 3.3, 0, .42, -1.2, oledScr);
+oledPivot.updateMatrixWorld(true);
+
+/* =====================================================================
+   KABEL
+   ===================================================================== */
+var wires = [];
+function addWire(o){
+  var mat = new T.MeshStandardMaterial({color:o.color, roughness:.5, metalness:0, transparent:true});
+  if(o.black){ blackMats.push(mat); }
+  var pts = o.dyn ? o.dyn() : o.pts;
+  var mesh = new T.Mesh(tubeGeo(pts, o.rad, o.corner || 1.1), mat);
+  mesh.castShadow = true;
+  L[o.layer].add(mesh);
+  o.mesh = mesh; o.mat = mat;
+  wires.push(o);
+  return o;
+}
+function wp(obj){ return obj.getWorldPosition(new T.Vector3()); }
+
+/* ---- kabel daya pompa ---- */
+var BLK = 0x20242a;
+function pumpWire(anchor, yh, zw, xt, zt, tBot, tz){
+  return function(){
+    var a = wp(anchor);
+    return [a, V(a.x, yh, a.z), V(a.x, yh, zw), V(xt, yh, zw), V(xt, yh, zt), V(xt, tBot, zt)];
+  };
+}
+var yA = wp(battPos), yB = wp(battNeg);
+var noR1 = wp(relay1.NO), noR2 = wp(relay2.NO), comR1 = wp(relay1.COM), comR2 = wp(relay2.COM);
+addWire({id:'yA', group:'power', layer:'power', color:0xfacc15, rad:.26, a:'Baterai +', b:'COM relay 1',
+  pts:[wp(battPos), V(-27, 2.8, 28), V(-27, 2.8, comR1.z), V(comR1.x - 1.2, 2.8, comR1.z), comR1]});
+addWire({id:'yB', group:'power', layer:'power', color:0xfacc15, rad:.26, a:'Baterai +', b:'COM relay 2',
+  pts:[wp(battPos), V(-27, 2.8, 28), V(-27, 2.8, comR2.z), V(comR2.x - 1.2, 2.8, comR2.z), comR2]});
+addWire({id:'red1', group:'power', layer:'power', color:0xe11d48, rad:.26, a:'NO relay 1', b:'+ pompa 1',
+  dyn:pumpWire(lead.r1, 46, 17.2, noR1.x, noR1.z, noR1.y)});
+addWire({id:'red2', group:'power', layer:'power', color:0xe11d48, rad:.26, a:'NO relay 2', b:'+ pompa 2',
+  dyn:pumpWire(lead.r2, 48, 18.2, noR2.x, noR2.z, noR2.y)});
+var negP = wp(battNeg);
+function blackWire(anchor, yh, zw, xd){
+  return function(){
+    var a = wp(anchor);
+    return [a, V(a.x, yh, a.z), V(a.x, yh, zw), V(xd, yh, zw), V(xd, yh, 28), V(xd, negP.y + .6, 28), V(negP.x - .2, negP.y + .6, 28)];
+  };
+}
+addWire({id:'blk1', group:'power', layer:'power', color:BLK, black:true, rad:.26, a:'− pompa 1', b:'− baterai', dyn:blackWire(lead.b1, 50, 19.4, -41.6)});
+addWire({id:'blk2', group:'power', layer:'power', color:BLK, black:true, rad:.26, a:'− pompa 2', b:'− baterai', dyn:blackWire(lead.b2, 52, 20.6, -40.2)});
+
+/* ---- selang sensor (ungu) ---- */
+addWire({id:'hoseS', group:'none', layer:'sensor', color:0x8b5cf6, rad:.42, corner:2.2, a:'', b:'',
+  dyn:function(){
+    var tip = wp(tipAnchor), n = wp(sNozA);
+    return [tip, V(tip.x, 55, tip.z), V(tip.x, 55, n.z), V(n.x, 55, n.z), n];
+  }});
+
+/* ---- kabel kontrol ---- */
+var ctrlN = 0;
+function ctrl(id, group, a, b, color, from, to, via){
+  var A = wp(a), B = wp(b);
+  var h = 3.0 + 0.55 * ctrlN; ctrlN++;
+  var v = via ? via(A, B) : [];
+  var pts = [A, V(A.x, h, A.z)];
+  v.forEach(function(p){ pts.push(V(p[0], h, p[1])); });
+  pts.push(V(B.x, h, B.z), B);
+  addWire({id:id, group:group, layer:'ctrl', color:color, rad:.17, a:from, b:to, pts:pts, black:color === BLK});
+}
+var R5 = function(i){ return railA(RAIL.v5, i); };
+var R3 = function(i){ return railA(RAIL.v33, i); };
+var RG = function(i){ return railA(RAIL.gnd, i); };
+var E = function(k){ return espPins[k]; };
+/* jalur bersama */
+ctrl('bus5', 'bus', E('f18'), R5(7), 0xef4444, 'pin 5V', 'jalur 5V', function(a, b){ return [[a.x, 43], [b.x, 43]]; });
+ctrl('bus3', 'bus', E('f0'), R3(7), 0xf97316, 'pin 3V3', 'jalur 3V3', function(a, b){ return [[a.x, 42], [b.x, 42]]; });
+ctrl('busg', 'bus', E('f13'), RG(7), BLK, 'pin GND', 'jalur GND', function(a, b){ return [[a.x, 41], [b.x, 41]]; });
+/* relay 1 */
+ctrl('r1in', 'r1', relay1.IN, E('b1'), 0x22c55e, 'IN', 'GPIO 23', function(a, b){ return [[b.x, a.z]]; });
+ctrl('r1v', 'r1', relay1.VCC, R5(1), 0xef4444, 'VCC', '5V', function(a, b){ return [[b.x, a.z]]; });
+ctrl('r1g', 'r1', relay1.GND, RG(2), BLK, 'GND', 'GND', function(a, b){ return [[b.x, a.z]]; });
+/* relay 2 */
+ctrl('r2in', 'r2', relay2.IN, E('f8'), 0x14b8a6, 'IN', 'GPIO 25', function(a, b){ return [[b.x, a.z]]; });
+ctrl('r2v', 'r2', relay2.VCC, R5(4), 0xef4444, 'VCC', '5V', function(a, b){ return [[b.x, a.z]]; });
+ctrl('r2g', 'r2', relay2.GND, RG(3), BLK, 'GND', 'GND', function(a, b){ return [[b.x, a.z]]; });
+/* sensor */
+ctrl('sout', 's', sA.OUT, E('f6'), 0xec4899, 'OUT', 'GPIO 32', function(a, b){ return [[a.x, 46.5], [b.x, 46.5]]; });
+ctrl('ssck', 's', sA.SCK, E('f7'), 0xa855f7, 'SCK', 'GPIO 33', function(a, b){ return [[a.x, 47.5], [b.x, 47.5]]; });
+ctrl('sv', 's', sA.VCC, R3(5), 0xf97316, 'VCC', '3V3', function(a, b){ return [[a.x, 48.5], [b.x, 48.5]]; });
+ctrl('sg', 's', sA.GND, RG(6), BLK, 'GND', 'GND', function(a, b){ return [[a.x, 49.5], [b.x, 49.5]]; });
+/* OLED */
+ctrl('osda', 'o', oA.SDA, E('b5'), 0x3b82f6, 'SDA', 'GPIO 21', function(a, b){ return [[b.x, a.z]]; });
+ctrl('oscl', 'o', oA.SCL, E('b2'), 0x67e8f9, 'SCL', 'GPIO 22', function(a, b){ return [[b.x, a.z]]; });
+ctrl('ov', 'o', oA.VCC, R3(0), 0xf97316, 'VCC', '3V3', function(a, b){ return [[b.x, a.z]]; });
+ctrl('og', 'o', oA.GND, RG(1), BLK, 'GND', 'GND', function(a, b){ return [[b.x, a.z]]; });
+
+/* =====================================================================
+   LABEL HTML
+   ===================================================================== */
+var tagList = [];
+function tag(text, getPos, dx, dy, cls){
+  var el = document.createElement('div');
+  el.className = 'tag' + (cls ? ' ' + cls : '');
+  el.textContent = text;
+  tagsEl.appendChild(el);
+  tagList.push({el:el, pos:getPos, dx:dx || 0, dy:dy || 0});
+}
+function atObj(o, off){ return function(){ var p = wp(o); if(off){ p.add(off); } return p; }; }
+function atVec(x, y, z){ return function(){ return V(x, y, z); }; }
+tag('Akuarium, air 21 cm', atVec(-26, TH, 14), 0, -6);
+tag('Botol ballast', atObj(topAnchor), -26, -4);
+tag('Pompa 1 · isi ballast', atObj(p1Anchor), 62, 6);
+tag('Pompa 2 · kuras ballast', atObj(p2Anchor), -62, 6);
+tag('lubang udara', atObj(ventAnchor), 46, -30, 'sm');
+tag('ujung selang sensor', atObj(tipAnchor), 62, 16, 'sm');
+tag('Baterai 18650 3,7 V', atObj(battTop), 0, -6);
+tag('+', atObj(battPos, V(1.5, 1.2, 0)), 0, 0, 'sm');
+tag('−', atObj(battNeg, V(-1.5, 1.2, 0)), 0, 0, 'sm');
+tag('Relay 1 · pompa 1', atObj(relay1.g, V(0, 5.2, -3.6)), 0, -4);
+tag('Relay 2 · pompa 2', atObj(relay2.g, V(0, 5.2, 3.6)), 0, 4);
+tag('ESP32 DevKit 38 pin', atObj(esp, V(0, 3.4, 8.2)), 0, 8);
+tag('USB', atObj(esp, V(12.8, 1.6, 0)), 18, 0, 'sm');
+tag('Sensor HX710B', atObj(sens, V(0, 5.4, 3.4)), 0, 0);
+tag('Selang sensor', function(){ var t = wp(tipAnchor); return V(t.x + 14, 55, 30); }, 0, -6, 'sm');
+tag('OLED SSD1306', atObj(oledPivot, V(0, 6.6, -3.6)), 0, -4);
+tag('rel GND', atVec(RAIL.gnd, 1.4, 14.6), 0, -6, 'sm');
+tag('rel 3V3', atVec(RAIL.v33, 1.4, 14.6), 0, -6, 'sm');
+tag('rel 5V', atVec(RAIL.v5, 1.4, 14.6), 0, -6, 'sm');
+
+var tmpV = new T.Vector3();
+function placeTags(w, h){
+  for(var i = 0; i < tagList.length; i++){
+    var t = tagList[i];
+    tmpV.copy(t.pos()).project(camera);
+    if(tmpV.z > 1 || tmpV.z < -1){ t.el.style.visibility = 'hidden'; continue; }
+    var x = (tmpV.x * .5 + .5) * w + t.dx;
+    var y = (-tmpV.y * .5 + .5) * h + t.dy;
+    t.el.style.visibility = 'visible';
+    t.el.style.transform = 'translate(' + Math.round(x) + 'px,' + Math.round(y) + 'px) translate(-50%,-50%)';
+  }
+}
+
+/* =====================================================================
+   DAFTAR SAMBUNGAN (panel kanan)
+   ===================================================================== */
+var GROUPS = [
+  {id:'power', title:'Daya pompa (baterai 3,7 V)'},
+  {id:'r1', title:'Relay 1 · Pompa 1 isi ballast'},
+  {id:'r2', title:'Relay 2 · Pompa 2 kuras ballast'},
+  {id:'s', title:'Sensor tekanan HX710B'},
+  {id:'o', title:'OLED SSD1306'},
+  {id:'bus', title:'Jalur bersama (rel breadboard)'}
+];
+var listEl = $('list');
+var rows = {};
+var latched = null;
+function hex(c){ var s = c.toString(16); while(s.length < 6){ s = '0' + s; } return '#' + s; }
+function applyHighlight(ids){
+  wires.forEach(function(w){
+    if(!ids){
+      w.mat.opacity = 1; w.mat.emissive.setHex(0x000000); w.mat.depthWrite = true;
+    } else if(ids.indexOf(w.id) >= 0){
+      w.mat.opacity = 1; w.mat.emissive.setHex(0x333333); w.mat.depthWrite = true;
+    } else {
+      w.mat.opacity = .12; w.mat.emissive.setHex(0x000000); w.mat.depthWrite = false;
+    }
+  });
+  for(var k in rows){ rows[k].classList.toggle('on', !!ids && ids.indexOf(k) >= 0 && ids.length === 1); }
+}
+function hover(ids){ applyHighlight(ids || latched); }
+GROUPS.forEach(function(gr){
+  var members = wires.filter(function(w){ return w.group === gr.id; });
+  if(!members.length){ return; }
+  var wrap = document.createElement('div'); wrap.className = 'grp';
+  var gh = document.createElement('button'); gh.className = 'gh'; gh.type = 'button'; gh.textContent = gr.title;
+  var gids = members.map(function(w){ return w.id; });
+  gh.addEventListener('mouseenter', function(){ hover(gids); });
+  gh.addEventListener('mouseleave', function(){ hover(null); });
+  gh.addEventListener('focus', function(){ hover(gids); });
+  gh.addEventListener('blur', function(){ hover(null); });
+  gh.addEventListener('click', function(){ latched = (latched && latched.join() === gids.join()) ? null : gids; applyHighlight(latched); });
+  wrap.appendChild(gh);
+  members.forEach(function(w){
+    var b = document.createElement('button'); b.className = 'row'; b.type = 'button';
+    var sw = document.createElement('span'); sw.className = 'sw';
+    sw.style.background = (w.black && isDark()) ? hex(THEMES.dark.black) : hex(w.color);
+    sw.dataset.black = w.black ? '1' : '';
+    var a = document.createElement('span'); a.className = 'pin'; a.textContent = w.a;
+    var ar = document.createElement('span'); ar.className = 'arr'; ar.textContent = '→';
+    var c = document.createElement('span');
+    c.className = 'pin' + (/GPIO|^5V$|^3V3$|^GND$|pin /.test(w.b) ? ' esp' : ''); c.textContent = w.b;
+    b.appendChild(sw); b.appendChild(a); b.appendChild(ar); b.appendChild(c);
+    var one = [w.id];
+    b.addEventListener('mouseenter', function(){ hover(one); });
+    b.addEventListener('mouseleave', function(){ hover(null); });
+    b.addEventListener('focus', function(){ hover(one); });
+    b.addEventListener('blur', function(){ hover(null); });
+    b.addEventListener('click', function(){ latched = (latched && latched.join() === one.join()) ? null : one; applyHighlight(latched); });
+    wrap.appendChild(b);
+    rows[w.id] = b;
+  });
+  listEl.appendChild(wrap);
+});
+function refreshSwatches(){
+  var sws = listEl.querySelectorAll('.sw');
+  for(var i = 0; i < sws.length; i++){
+    if(sws[i].dataset.black){ sws[i].style.background = isDark() ? hex(THEMES.dark.black) : hex(THEMES.light.black); }
+  }
+}
+
+/* lapisan */
+function bindLayer(id, fn){ $(id).addEventListener('change', function(e){ fn(e.target.checked); }); }
+bindLayer('lyHose', function(v){ hoseGroup.visible = v; });
+bindLayer('lySensor', function(v){ L.sensor.visible = v; });
+bindLayer('lyPower', function(v){ L.power.visible = v; });
+bindLayer('lyCtrl', function(v){ L.ctrl.visible = v; });
+bindLayer('lyTags', function(v){ tagsEl.style.display = v ? '' : 'none'; });
+
+/* =====================================================================
+   SIMULASI
+   ===================================================================== */
+var MODES = {naik:{t:2, name:'MENGAPUNG'}, melayang:{t:11, name:'MELAYANG'}, turun:{t:19, name:'TENGGELAM'}};
+var depth = 11, target = 11, modeName = 'MELAYANG';
+var p1on = false, p2on = false, flow = 0;
+var modeBtns = document.querySelectorAll('.mode');
+for(var mi = 0; mi < modeBtns.length; mi++){
+  (function(btn){
+    btn.addEventListener('click', function(){
+      var m = MODES[btn.getAttribute('data-m')];
+      target = m.t; modeName = m.name;
+      for(var j = 0; j < modeBtns.length; j++){ modeBtns[j].setAttribute('aria-pressed', modeBtns[j] === btn ? 'true' : 'false'); }
+    });
+  })(modeBtns[mi]);
+}
+function condText(moving){
+  if(moving){ return modeName; }
+  if(depth <= 5) return 'MENGAPUNG';
+  if(depth >= 16) return 'TENGGELAM';
+  return 'MELAYANG';
+}
+var lastDepthY = null;
+var ledRed = ledObjs;
+function stepSim(dt){
+  var diff = target - depth;
+  if(Math.abs(diff) > .05){
+    var sp = Math.min(Math.abs(diff) * 1.6 + 2.2, 7.5);
+    depth += Math.sign(diff) * Math.min(Math.abs(diff), sp * dt);
+  }
+  p1on = (target - depth) > .4;
+  p2on = (depth - target) > .4;
+  var moving = p1on || p2on;
+  var f = Math.max(.08, Math.min(.92, .1 + .8 * (depth - 2) / 17));
+  setFill(f);
+  bottle.position.y = WL - depth;
+  bottle.position.x = BX;
+  bottle.updateMatrixWorld(true);
+  /* kabel yang ikut bergerak */
+  if(lastDepthY === null || Math.abs(lastDepthY - depth) > .004){
+    lastDepthY = depth;
+    wires.forEach(function(w){
+      if(w.dyn){
+        w.mesh.geometry.dispose();
+        w.mesh.geometry = tubeGeo(w.dyn(), w.rad, w.corner || 1.1);
+      }
+    });
+  }
+  /* indikator */
+  pump1Body.material.emissive.setHex(p1on ? 0x16a34a : 0x000000);
+  pump2Body.material.emissive.setHex(p2on ? 0x16a34a : 0x000000);
+  pump1Body.material.emissiveIntensity = p1on ? .7 : 0;
+  pump2Body.material.emissiveIntensity = p2on ? .7 : 0;
+  relay1.led.material.emissiveIntensity = p1on ? 1.4 : 0;
+  relay2.led.material.emissiveIntensity = p2on ? 1.4 : 0;
+  /* partikel air */
+  flow = (flow + dt * .55) % 1;
+  for(var i = 0; i < 5; i++){
+    var t = (flow + i / 5) % 1;
+    part1[i].visible = p1on;
+    part2[i].visible = p2on;
+    if(p1on){ part1[i].position.copy(curve1.getPointAt(1 - t)); }
+    if(p2on){ part2[i].position.copy(curve2.getPointAt(t)); }
+  }
+  /* HUD */
+  $('hDepth').textContent = depth.toFixed(1);
+  var st = condText(moving);
+  $('hStatus').textContent = moving ? (st + ' · bergerak') : st;
+  var h1 = $('hP1'), h2 = $('hP2');
+  h1.textContent = 'Pompa 1 ' + (p1on ? 'ON' : 'OFF'); h1.className = 'pill' + (p1on ? ' on' : '');
+  h2.textContent = 'Pompa 2 ' + (p2on ? 'ON' : 'OFF'); h2.className = 'pill' + (p2on ? ' on' : '');
+  /* OLED (maks. ~8x per detik) */
+  var dr = Math.round(depth * 10) / 10;
+  if(dr !== oledState.depth || target !== oledState.tgt || st !== oledState.status || p1on !== oledState.p1 || p2on !== oledState.p2){
+    var now = performance.now();
+    if(now - (stepSim.lastOled || 0) > 120){
+      stepSim.lastOled = now;
+      oledState.depth = dr; oledState.tgt = target; oledState.status = st; oledState.p1 = p1on; oledState.p2 = p2on;
+      redrawTex(oledScr);
+    }
+  }
+}
+
+/* =====================================================================
+   KAMERA
+   ===================================================================== */
+var VIEWS = {
+  iso:{p:[26, 92, 138], t:[6, 12, 26]},
+  top:{p:[8, 168, 36], t:[8, 0, 28]},
+  tank:{p:[-26, 18, 80], t:[-26, 11, 0]},
+  esp:{p:[40, 36, 54], t:[34, 0, 28]}
+};
+var tween = null;
+function flyTo(key){
+  var v = VIEWS[key];
+  tween = {t0:performance.now(), dur:900, p0:camera.position.clone(), q0:controls.target.clone(), p1:V(v.p[0], v.p[1], v.p[2]), q1:V(v.t[0], v.t[1], v.t[2])};
+}
+document.querySelectorAll('#views .chip').forEach(function(b){
+  b.addEventListener('click', function(){ flyTo(b.getAttribute('data-v')); });
+});
+camera.position.set(26, 92, 138);
+controls.target.set(6, 12, 26);
+controls.update();
+
+/* =====================================================================
+   LOOP
+   ===================================================================== */
+function resize(){
+  var w = stage.clientWidth, h = stage.clientHeight;
+  if(!w || !h){ return; }
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+if(window.ResizeObserver){ new ResizeObserver(resize).observe(stage); }
+window.addEventListener('resize', resize);
+resize();
+
+var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var last = performance.now();
+function frame(now){
+  var dt = Math.min(.05, (now - last) / 1000);
+  last = now;
+  if(tween){
+    var k = Math.min(1, (now - tween.t0) / tween.dur);
+    var e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    camera.position.lerpVectors(tween.p0, tween.p1, e);
+    controls.target.lerpVectors(tween.q0, tween.q1, e);
+    if(k >= 1){ tween = null; }
+  }
+  controls.update();
+  stepSim(reduce ? Math.max(dt, .03) : dt);
+  renderer.render(scene, camera);
+  placeTags(stage.clientWidth, stage.clientHeight);
+  requestAnimationFrame(frame);
+}
+
+applyTheme();
+refreshSwatches();
+stepSim(0.016);
+if(document.fonts && document.fonts.ready){
+  document.fonts.ready.then(function(){ fontsReady.forEach(redrawTex); });
+}
+try{
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  var onT = function(){ applyTheme(); refreshSwatches(); };
+  if(mq.addEventListener){ mq.addEventListener('change', onT); }
+  new MutationObserver(onT).observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
+}catch(e){}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
